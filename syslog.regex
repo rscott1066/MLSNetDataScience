@@ -1,0 +1,4 @@
+(?<syslog_type>%PM-4-ERR_RECOVER):\sAttempting to recover from bpduguard err-disable state on\s(?<interface>\w{2}\d/\d{1,2})
+(?<syslog_type>% SPANTREE - 2 - BLOCK_BPDUGUARD):\sReceived BPDU on port (?<interface>\w{2}\d/\d{1,2})\swith BPDU Guard enabled.Disabling port
+(?<syslog_type>%SPANTREE-2-BLOCK_BPDUGUARD):\sReceived BPDU on port (?<interface>\w{2}\d/\d{1,2})\swith BPDU Guard enabled. Disabling port.
+(?<syslog_type>%PM-4-ERR_DISABLE):\sbpduguard error detected on\s(?<interface>\w{2}\d/\d{1,2}),\sputting \w{2}\d/\d{1,2} in err-disable state
