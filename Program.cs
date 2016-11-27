@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -21,6 +21,7 @@ namespace SyslogToEventHub
         public string time { get; set; }
         public string facility { get; set; }
         public string address { get; set; }
+        public string netInterface { get; set; }
         public string message { get; set; }
         public detail message_detail { get; set; }
 
@@ -60,6 +61,8 @@ namespace SyslogToEventHub
         {
             int event_count = 0;
             int total_event_count = 0;
+            int updowncount = 0;
+            string readline; 
             List<EventData> e = new List<EventData>();
             Stopwatch sw = new Stopwatch();
 
@@ -104,10 +107,13 @@ namespace SyslogToEventHub
             Console.SetCursorPosition(16, 3);
             Console.Write("------------- ----------------------------");
 
-            while (true)
+            bool noteof = true;
+
+            while (noteof)
             {
-                using (TextReader tr = File.OpenText(@"\\mlsnetlog01\d$\syslog\mls_syslog.001"))  
-         /*       using (TextReader tr = File.OpenText(@"\\mlsnetlog01\d$\syslog_data\ideapoceh03.txt")) */
+                 /* using (TextReader tr = File.OpenText(@"c:\Azure\POC\ideapoceh02\mls_syslog")) */  
+                               using (TextReader tr = File.OpenText(@"\\mlsnetlog01\d$\syslog\mls_syslog.001"))   
+                /*       using (TextReader tr = File.OpenText(@"\\mlsnetlog01\d$\syslog_data\ideapoceh03.txt")) */
 
                 {
 
@@ -123,6 +129,16 @@ namespace SyslogToEventHub
                         sl.facility = items[1];
                         sl.address = items[2];
                         sl.message = items[3];
+
+                        bool testupdown = sl.message.StartsWith("%LINK-3-UPDOWN:");
+                        /* Console.WriteLine("Found UPDOWN? {0}", testupdown); */
+                        if (testupdown)
+                        { updowncount++;
+                            string[] messageItems = sl.message.Split(' ');
+                            string msgInterface = messageItems[2];
+                            /* Console.WriteLine("Interface is {0}", msgInterface); */
+                            sl.netInterface = msgInterface;
+                        }
 
                         for (int i = 0; i <= capture.Count() - 1; i++)
                         {
@@ -163,7 +179,7 @@ namespace SyslogToEventHub
                             try
                             {
                                 eventHubClient.SendBatchAsync(e);
-                                Thread.Sleep(250);
+                                Thread.Sleep(50);
                                 Console.SetCursorPosition(1, 4);
                                 Console.WriteLine("ASYNC SENT   : {0:0,0}", total_event_count);
                                 Console.SetCursorPosition(1, 5);
@@ -195,6 +211,12 @@ namespace SyslogToEventHub
                             event_count++;
                         }
                     }
+                    Console.WriteLine("Got a null line\n");
+                    noteof = false;
+                    Console.WriteLine("Total event count is {0}", total_event_count);
+                    Console.WriteLine("Total updown events is {0}", updowncount);
+                    Console.ReadKey();
+
                 }
 
             }
