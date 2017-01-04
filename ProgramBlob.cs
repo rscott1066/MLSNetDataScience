@@ -45,7 +45,8 @@ namespace AzBlob
     {
 
         static string eventHubName = "syslog";
-        static string connectionString = "Endpoint=sb://ideapoceh04.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=HlD24Vl14hUC7nfyTtGsEphND00O8DHbhsk4Lsr+n3c=;EntityPath=ideapoceh04h1";
+        //static string connectionString = "Endpoint=sb://ideapoceh04.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=HlD24Vl14hUC7nfyTtGsEphND00O8DHbhsk4Lsr+n3c=;EntityPath=ideapoceh04h1";
+        static string json_eh_message;
 
         static void Main(string[] args)
         {
@@ -54,7 +55,8 @@ namespace AzBlob
             int total_event_count = 0;
             int updowncount = 0;
             List<EventData> e = new List<EventData>();
-            EventHubClient eventHubClient = EventHubClient.CreateFromConnectionString(connectionString);
+            //EventHubClient eventHubClient = EventHubClient.CreateFromConnectionString(connectionString);
+            EventHubClient eventHubClient = EventHubClient.CreateFromConnectionString(CloudConfigurationManager.GetSetting("EventHubConnectionString"));
 
             // Parse the connection string and return a reference to the storage account.
             CloudStorageAccount storageAccount = CloudStorageAccount.Parse(
@@ -64,6 +66,14 @@ namespace AzBlob
 
             // Retrieve reference to a previously created container.
             CloudBlobContainer container = blobClient.GetContainerReference("syslogs");
+
+            // Retrieve reference to a previously created container for output logs
+            CloudBlobContainer containerlogs = blobClient.GetContainerReference("logs");
+            // Create the logs container if it does not already exist
+            containerlogs.CreateIfNotExists();
+            CloudAppendBlob logout = containerlogs.GetAppendBlobReference("ideapoceh04out");
+            if (!logout.Exists()) { logout.CreateOrReplace(); }
+            logout.AppendText(String.Format("Time: {0:u} \t : Beginning execution {1}", DateTime.UtcNow, Environment.NewLine));
 
             // Loop over items within the container and output the length and URI.
             foreach (IListBlobItem item in container.ListBlobs(null, false))
@@ -94,6 +104,8 @@ namespace AzBlob
                 CloudBlockBlob blockBlob2 = container.GetBlockBlobReference("mls_syslog");
 
                 string line;
+                //string json_eh_message;
+
                 //using (var memoryStream = new MemoryStream())
                 using (var stream = blockBlob2.OpenRead())
                 {
@@ -123,8 +135,8 @@ namespace AzBlob
                                 /* Console.WriteLine("Interface is {0}", msgInterface); */
                                 sl.netInterface = msgInterface;
                             }
-
-                            string json_eh_message = JsonConvert.SerializeObject(sl);
+                            // string json_eh_message = JsonConvert.SerializeObject(sl);
+                            json_eh_message = JsonConvert.SerializeObject(sl);
 
                             if (event_count >= 936)
                             {
@@ -154,9 +166,24 @@ namespace AzBlob
                                 event_count++;
                                 Console.WriteLine(json_eh_message);
                             }
+                        }   // EOF -- submit final batch of remaining events
+                        try
+                        {
+                            eventHubClient.SendBatchAsync(e);
                         }
+                        catch (Exception exception)
+                        {
+                            Console.ForegroundColor = ConsoleColor.Red;
+                            Console.WriteLine("{0} > Exception: {1}", DateTime.Now, exception.Message);
+                            Console.ResetColor();
+                        }
+                        total_event_count += event_count;
                     }
                 }
+                logout.AppendText(String.Format("Time: {0:u} \t : {1} link up/down events processed {2}", DateTime.UtcNow, updowncount, Environment.NewLine));
+                logout.AppendText(String.Format("Time: {0:u} \t : {1} total events processed {2}", DateTime.UtcNow, total_event_count, Environment.NewLine));
+                logout.AppendText(String.Format("Time: {0:u} \t : Ending execution {1}", DateTime.UtcNow, Environment.NewLine));
+
                 Console.WriteLine("Port flap event count: {0}", updowncount);
                 Console.WriteLine("Total events: {0}", total_event_count);
                 Console.ReadLine();
