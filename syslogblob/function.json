@@ -1,0 +1,1 @@
+{  "bindings": [    {      "name": "myBlob",      "type": "blobTrigger",      "direction": "in",      "path": "syslogs/{name}",      "connection": "ideapoceh04stg_STORAGE"    }  ],  "disabled": false}
